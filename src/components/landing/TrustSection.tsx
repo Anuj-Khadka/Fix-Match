@@ -1,30 +1,36 @@
-import { Shield, Users, Star, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 
-const stats = [
-  { icon: Users, value: "500+", label: "Verified Providers" },
-  { icon: Star, value: "4.8", label: "Average Rating" },
-  { icon: Clock, value: "<2 min", label: "Avg Match Time" },
-  { icon: Shield, value: "100%", label: "Licensed & Insured" },
+const pillars = [
+  {
+    title: "Reliable Professionals",
+    description: "Verified service providers.",
+  },
+  {
+    title: "Clear Expectations",
+    description: "Transparent price ranges and estimated arrival times.",
+  },
+  {
+    title: "You're in control",
+    description: "Track your request in real time.",
+  },
 ];
 
 const TrustSection = () => {
   return (
-    <section className="border-t bg-primary py-16 text-primary-foreground">
+    <section className="border-t py-20">
       <div className="container">
-        <div className="mx-auto grid max-w-4xl grid-cols-2 gap-8 md:grid-cols-4">
-          {stats.map((stat, i) => (
+        <div className="grid gap-10 md:grid-cols-3">
+          {pillars.map((pillar, i) => (
             <motion.div
-              key={stat.label}
-              className="text-center"
+              key={pillar.title}
+              className="border-l-2 border-primary pl-6"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: i * 0.1 }}
+              transition={{ duration: 0.4, delay: i * 0.12 }}
             >
-              <stat.icon className="mx-auto mb-3 h-6 w-6 opacity-80" />
-              <div className="font-display text-3xl font-bold">{stat.value}</div>
-              <div className="mt-1 text-sm opacity-80">{stat.label}</div>
+              <h3 className="font-display text-lg font-semibold">{pillar.title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{pillar.description}</p>
             </motion.div>
           ))}
         </div>

@@ -1,7 +1,10 @@
 import { Link } from "react-router-dom";
 import { Wrench } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Footer = () => {
+  const { user } = useAuth();
+
   return (
     <footer className="border-t py-12">
       <div className="container">
@@ -16,7 +19,9 @@ const Footer = () => {
           <nav className="flex gap-6 text-sm text-muted-foreground">
             <Link to="/how-it-works" className="hover:text-foreground transition-colors">How It Works</Link>
             <Link to="/services" className="hover:text-foreground transition-colors">Services</Link>
-            <Link to="/auth" className="hover:text-foreground transition-colors">Sign In</Link>
+            {!user && (
+              <Link to="/auth/login" className="hover:text-foreground transition-colors">Sign In</Link>
+            )}
           </nav>
 
           <p className="text-xs text-muted-foreground">

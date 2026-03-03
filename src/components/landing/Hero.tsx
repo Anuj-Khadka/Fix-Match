@@ -1,88 +1,137 @@
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Shield, Clock, Star } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { MapPin, Search } from "lucide-react";
 import { motion } from "framer-motion";
 
-const Hero = () => {
-  return (
-    <section className="relative overflow-hidden py-20 md:py-32">
-      {/* Background accent */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-0 h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-primary/5 blur-3xl" />
-      </div>
+const popularSearches = [
+  "Plumbing repair",
+  "Electrical issue",
+  "HVAC repair",
+  "Lockout",
+  "Appliance repair",
+];
 
+const Hero = () => {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const [location, setLocation] = useState("Detecting...");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocation("Add location");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+          );
+          const data = await res.json();
+          const postcode = data.address?.postcode;
+          const city =
+            data.address?.city ||
+            data.address?.town ||
+            data.address?.village ||
+            data.address?.suburb;
+          setLocation(postcode || city || "Your location");
+        } catch {
+          setLocation("Your location");
+        }
+      },
+      () => setLocation("Add location")
+    );
+  }, []);
+
+  const handleSearch = (term?: string) => {
+    const q = term ?? query;
+    navigate(q.trim() ? `/request?q=${encodeURIComponent(q.trim())}` : "/request");
+  };
+
+  return (
+    <section className="py-28">
       <div className="container">
-        <div className="mx-auto max-w-3xl text-center">
-          <motion.div
+        <div className="mx-auto max-w-2xl text-center">
+          <motion.h1
+            className="font-display text-5xl font-bold leading-[1.1] tracking-tight md:text-6xl"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Badge variant="secondary" className="mb-6 gap-1.5 px-3 py-1.5 text-sm font-medium">
-              <Clock className="h-3.5 w-3.5" />
-              Average match in under 2 minutes
-            </Badge>
-          </motion.div>
+            Get help when it matters most.
+          </motion.h1>
 
-          <motion.h1
-            className="font-display text-4xl font-bold leading-tight tracking-tight md:text-6xl"
+          <motion.p
+            className="mx-auto mt-5 max-w-md text-lg text-muted-foreground"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            Get help fast{" "}
-            <span className="text-primary">when things break</span>
-          </motion.h1>
+            Instantly matched with an available local professional — no searching, no waiting.
+          </motion.p>
 
-          <motion.p
-            className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground"
+          {/* Search bar */}
+          <motion.div
+            className="relative mt-10"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            FixMatch instantly connects you with verified, available service providers nearby.
-            No endless scrolling. No waiting for callbacks.
-          </motion.p>
+            <div className="flex overflow-hidden rounded-xl border bg-background shadow-lg">
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Describe your project or problem — be as detailed as you'd like!"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="min-w-0 flex-1 bg-transparent px-5 py-4 text-sm outline-none placeholder:text-muted-foreground"
+              />
+              <div className="flex shrink-0 items-center gap-1.5 border-l px-4 text-muted-foreground">
+                <MapPin className="h-4 w-4" />
+                <span className="text-sm font-semibold text-foreground">{location}</span>
+              </div>
+              <button
+                onClick={() => handleSearch()}
+                className="shrink-0 bg-primary px-6 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                Search
+              </button>
+            </div>
 
-          <motion.div
-            className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <Link to="/request">
-              <Button size="lg" className="gap-2 px-8 text-base font-semibold">
-                Get Matched Now
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link to="/how-it-works">
-              <Button size="lg" variant="outline" className="text-base">
-                See How It Works
-              </Button>
-            </Link>
+            {/* Popular searches dropdown */}
+            {showSuggestions && (
+              <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border bg-background shadow-xl">
+                <p className="px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Popular searches
+                </p>
+                {popularSearches.map((term) => (
+                  <button
+                    key={term}
+                    onMouseDown={() => handleSearch(term)}
+                    className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm transition-colors hover:bg-muted"
+                  >
+                    <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span>{term}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </motion.div>
 
-          <motion.div
-            className="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground"
+          <motion.p
+            className="mt-4 text-xs text-muted-foreground"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
           >
-            <div className="flex items-center gap-1.5">
-              <Shield className="h-4 w-4 text-success" />
-              <span>Verified providers</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Star className="h-4 w-4 text-accent" />
-              <span>4.8 avg rating</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Clock className="h-4 w-4 text-primary" />
-              <span>Available 24/7</span>
-            </div>
-          </motion.div>
+            Available for urgent home services.
+          </motion.p>
         </div>
       </div>
     </section>
