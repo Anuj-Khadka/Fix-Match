@@ -1,39 +1,74 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
-import type { ProviderProfile } from '@/lib/types/database'
 import ProviderLayout from '@/components/layouts/ProviderLayout'
 
 export default function ProviderDashboard() {
   const { user } = useAuth()
-  const [providerProfile, setProviderProfile] = useState<ProviderProfile | null>(null)
+  const [isVerified, setIsVerified] = useState<boolean | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(true)
+  const [syncError, setSyncError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
-    // @ts-expect-error – new table added by migration 001
-    supabase.from('provider_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        setProviderProfile(data as unknown as ProviderProfile | null)
-        setLoadingProfile(false)
-      })
-  }, [user])
 
-  const kycStatus = providerProfile?.kyc_status ?? 'pending'
+    async function syncProfile() {
+      const meta = user!.user_metadata ?? {}
+      const { data, error: selectErr } = await supabase
+        .from('providers')
+        .select('is_verified')
+        .eq('id', user!.id)
+        .maybeSingle()
+
+      if (selectErr) {
+        setSyncError(selectErr.message)
+        setLoadingProfile(false)
+        return
+      }
+
+      if (data) {
+        // Row exists — use it
+        setIsVerified(data.is_verified ?? null)
+        setLoadingProfile(false)
+        return
+      }
+
+      // No row yet — create one from user_metadata (handles existing providers too)
+      const { error: insertErr } = await supabase.from('providers').upsert({
+        id: user!.id,
+        name: (meta.full_name as string) || user!.email || '',
+        email: user!.email || null,
+        phone: (meta.phone as string) || null,
+        is_verified: false,
+      })
+
+      if (insertErr) {
+        setSyncError(`Could not save profile (${insertErr.code}): ${insertErr.message}`)
+      } else {
+        setIsVerified(false)
+      }
+      setLoadingProfile(false)
+    }
+
+    syncProfile()
+  }, [user])
 
   return (
     <ProviderLayout>
       <div className="px-4 py-8">
         <h1 className="font-display text-2xl font-bold text-gray-900">Dashboard</h1>
 
-        {/* KYC banners */}
+        {/* Sync error (RLS or network issue) */}
+        {syncError && (
+          <div className="mt-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-xs text-red-700 font-mono">
+            {syncError}
+          </div>
+        )}
+
+        {/* Approval banners */}
         {!loadingProfile && (
           <>
-            {(kycStatus === 'pending' || kycStatus === 'under_review') && (
+            {isVerified !== true && (
               <div className="mt-4 rounded-xl bg-yellow-50 border border-yellow-200 px-4 py-4">
                 <p className="text-sm font-medium text-yellow-800">
                   ⏳ Your account is under review.
@@ -44,26 +79,7 @@ export default function ProviderDashboard() {
               </div>
             )}
 
-            {kycStatus === 'rejected' && (
-              <div className="mt-4 rounded-xl bg-red-50 border border-red-200 px-4 py-4">
-                <p className="text-sm font-medium text-red-800">
-                  ❌ Your verification was not approved.
-                </p>
-                {providerProfile?.kyc_rejection_reason && (
-                  <p className="mt-1 text-sm text-red-700">
-                    Reason: {providerProfile.kyc_rejection_reason}
-                  </p>
-                )}
-                <Link
-                  to="/onboarding/provider"
-                  className="mt-3 inline-block text-sm font-semibold text-red-700 underline"
-                >
-                  Re-upload documents →
-                </Link>
-              </div>
-            )}
-
-            {kycStatus === 'approved' && (
+            {isVerified === true && (
               <div className="mt-4">
                 {/* Online/Offline toggle placeholder */}
                 <div className="flex items-center justify-between rounded-xl border bg-white p-4">

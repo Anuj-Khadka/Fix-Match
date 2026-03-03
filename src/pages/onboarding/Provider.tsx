@@ -150,21 +150,25 @@ export default function ProviderOnboarding() {
 
       // Update local profile state immediately — unblocks ProtectedRoute right away.
       // auth.updateUser + DB writes happen in the background (fire-and-forget).
-      completeOnboarding({ phone: phone.trim() })
+      completeOnboarding({ phone: phone.trim(), skills: allSkills })
 
-      // Best-effort DB persist (non-blocking)
-      // @ts-expect-error – table added by migration 001
-      supabase.from('provider_profiles').upsert({
+      // Write provider data to the providers table
+      const { error: upsertError } = await supabase.from('providers').upsert({
         id: user.id,
-        business_name: businessName.trim() || null,
+        name: profile?.full_name || user.email || '',
         bio: bio.trim() || null,
-        skills: allSkills,
-        hourly_rate: parseFloat(hourlyRate),
-        kyc_document_url: kycDocUrl || null,
-        kyc_status: 'pending',
+        phone: phone.trim() || null,
+        email: user.email || null,
+        hourly_rate_min: parseFloat(hourlyRate),
+        hourly_rate_max: parseFloat(hourlyRate),
+        is_verified: false,
       })
-      // @ts-expect-error – column added by migration 001
-      supabase.from('profiles').update({ onboarding_complete: true }).eq('id', user.id)
+
+      if (upsertError) {
+        // Show error in UI so we can diagnose the exact issue
+        setError(`DB error (${upsertError.code}): ${upsertError.message}`)
+        return // finally block still runs setLoading(false)
+      }
 
       navigate('/provider')
     } catch (err) {
